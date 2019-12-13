@@ -1,0 +1,742 @@
+
+// Created by warlmare on 5/16/18.
+//
+
+#ifndef THESIS_FRIEDER_CORRELATIONFUNCTIONS_H
+#define THESIS_FRIEDER_CORRELATIONFUNCTIONS_H
+
+
+#include <iostream>
+#include <unistd.h>
+#include <linux/limits.h>
+#include <stdio.h>
+#include <dirent.h>
+#include <fnmatch.h>
+#include <vector>
+#include <string>
+#include <boost/regex.hpp>
+#include <boost/filesystem.hpp>
+
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <fstream>
+
+//for find
+#include <algorithm>
+
+//for any_of
+#include <functional>
+
+//for vector erase
+#include <bits/stdc++.h>
+
+
+
+
+//std::vector<std::string> active_tcp_connections;
+
+//checks wether a filedescriptor under proc/pid*/fd is a socket, returns true
+/*bool is_filedescriptor_socket(std::string process, const std::string filedescriptor) {
+
+    std::string filedescriptor_path = "/proc/" + process + "/fd/" + filedescriptor;
+
+    char result_path[PATH_MAX] = {0};
+    auto size = readlink(filedescriptor_path.c_str(), result_path, sizeof(result_path - 1));
+    std::string result = std::string(result_path);
+    if (result == "socket:[") {
+        return true;
+    } else {
+        return false;
+    }
+}*/
+
+/*//gives out all the files in a folder as a vector (filters out "." and "..")
+std::vector<std::string> file_displayer(std::string folder_path) {
+
+    std::vector<std::string> files_in_folder;
+    DIR *d;
+    struct dirent *dir;
+    d = opendir(folder_path.c_str());
+    if (d) {
+        while ((dir = readdir(d)) != NULL) {
+            std::string str = dir->d_name;
+
+            //@debug prints out the contents that are put into the vector
+            //std::cout << str << std::endl;
+            if (str.compare(".") != 0 && str.compare("..") != 0) {
+                files_in_folder.push_back(str);
+            }
+        }
+        closedir(d);
+    }
+    //@debug that returns all the files in the string vector
+    *//*  for(int i=0; i<files_in_folder.size(); ++i)
+     std::cout << files_in_folder[i] << ' '; *//*
+    return files_in_folder;
+}*/
+
+std::string inode_retriever(std::string process, std::string filedescriptor) {
+    std::string filedescriptor_path = "/proc/" + process + "/fd/" + filedescriptor;
+    char result_path[PATH_MAX] = {0};
+    auto size = readlink(filedescriptor_path.c_str(), result_path, sizeof(result_path));
+    std::string result = std::string(result_path);
+
+    std::string s = "socket:[";
+    std::string q = "]";
+
+    //removes the socket:[ string
+    std::string::size_type i = result.find(s);
+    if (i != std::string::npos)
+        result.erase(i, s.length());
+
+    //removes the closing bracket of socket:[]
+    std::string::size_type p = result.find(q);
+    if (p != std::string::npos)
+        result.erase(p, q.length());
+
+    return result;
+}
+
+/*//takes a process  filters out the sockets, and returns their inode
+int socket_displayer(std::string process) {
+
+    std::string process_path = "/proc/" + process + "/fd/";
+    std::vector<std::string> file_descriptors = file_displayer(process_path);
+
+    for (auto iter = file_descriptors.begin(); iter != file_descriptors.end(); ++iter) {
+
+        //@debug prints out the filedescriptor numbers from the iterator
+        //std::cout << (*iter) <<"   \n";
+
+        if (is_filedescriptor_socket(process, *iter)) {
+            int inode = std::stoi(inode_retriever(process, *iter));
+
+            //@debug shows the found indoes
+            //std::cout << "\n" + inode_retriever(process, *iter) + "\n";
+
+            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            //TODO: THE INDODES HAVE TO BE COLLECTED AND THEN RETURNED AS A INT ARRAY
+            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+            return inode;
+        }
+
+    }
+
+}*/
+
+/*
+//@debug function
+//reads - line by line - from a file to contain the original formatting
+void line_reader(std::string *line) {
+    std::cout << "line read: " << *line << std::endl;
+}
+
+//filters for line
+std::string line_filter_reader(std::string *line, int inode) {
+    std::string inode_string = std::to_string(inode);
+    std::string output;
+
+    if (line->find(inode_string) != std::string::npos) {
+        //change return type and make the information usable
+        //std::cout << "line read: " << *line << std::endl;
+        output = *line;
+    }*//* else{
+        continue;
+  } *//*
+    return output;
+
+}*/
+
+
+const char *hex_to_ip(const char *input) {
+    char *output = (char *) malloc(sizeof(char) * 16);
+    unsigned int a, b, c, d;
+
+    if (sscanf(input, "%2x%2x%2x%2x", &a, &b, &c, &d) != 4)
+        return output;
+    sprintf(output, "%u.%u.%u.%u", d, c, b, a);
+    return output;
+}
+
+
+const char *hex_to_port(const char *port) {
+
+    int y;
+    std::stringstream stream;
+
+    stream << port;
+    stream >> std::hex >> y;
+    std::string s = std::to_string(y);
+    char const *result = s.c_str();
+    return result;
+
+}
+
+/*//filters out the local socket adress in hex format from a line of /proc/net/tcp
+std::string output_formatter(std::string process, std::string raw_socket_vector) {
+    raw_socket_vector.resize(130);
+
+    std::string local_socket = raw_socket_vector.substr(5, 16);
+    std::string local_socket_ip = raw_socket_vector.substr(5, 9);
+    const char *locip = local_socket_ip.c_str();
+    const char *locip1 = hex_to_ip(locip);
+    local_socket.resize(15);
+
+    std::string local_socket_port = local_socket.substr(10, 9);
+    const char *locprt = local_socket_port.c_str();
+    std::string locprt1 = std::string(hex_to_port(locprt));
+
+
+    std::string remote_socket = raw_socket_vector.substr(19, 15); //wrong rezising!!!!stil works ???
+    std::string remote_socket_ip = raw_socket_vector.substr(19, 9);
+    const char *rmip = remote_socket_ip.c_str();
+    const char *rmip1 = hex_to_ip(rmip);
+    remote_socket.resize(15);
+
+    std::string remote_socket_port = remote_socket.substr(10, 9);
+    const char *rmprt = local_socket_port.c_str();
+    std::string rmprt1 = std::string(hex_to_port(rmprt));
+
+    std::string correlation_message =
+            "\nprocess : " + process + "  protocol: tcp " + "  local_adress_ip: " + locip1 + ":" + locprt1 +
+            "  remote_adress_ip: " + rmip1 + ":" + rmprt1 + "\n";
+    std::cout << correlation_message;
+    return correlation_message;
+}*/
+
+
+//returns true if a string contains a string
+bool line_finder(std::string s1, std::string s2) {
+    if (s1.find(s2) != std::string::npos) {
+        return false;
+        //std::cout << "found!" << '\n';
+    } else {
+        return true;
+    }
+}
+
+/*//open the proc/net/tcp file and process it
+void tcp_socket(std::string process) {
+    std::ifstream in;
+    std::string file = "/proc/net/tcp";
+    in.open(file.c_str());
+    std::string line;
+    int inode = socket_displayer(process);
+    std::string result_message;
+    std::vector<std::string> active_tcp_connections;
+
+    //the raw line of information with matching inode from /proc/net/tcp
+    std::string raw_tcp_string;
+    std::vector<std::string> socket_vector;
+
+    //is a counter that gets incremented when a process matches a line
+    //this is in order to make the while loop below better, (exclude an
+    // overall error message from the loop)
+    int match_counter = 0;
+
+    //finds the inode information for a given process number
+
+    while (getline(in, line)) {
+        //filters out virtual ports
+        if (line_finder(line, "0100007F") && line_finder(line, "0F02000A:0016 0202000A") &&
+            line_finder(line, "00000000:0016")) {//filters out virtual sockets
+            if (!line_filter_reader(&line, inode).empty()
+                //&& line_finder(line, "local_adress_ip: 10.0.2.15:22  remote_adress_ip: 10.0.2.2:22")//
+                    ) {
+                raw_tcp_string = line_filter_reader(&line, inode);
+                socket_vector.push_back(raw_tcp_string);
+                match_counter++;
+            }//for every line that there is no socketinode match do
+        }
+
+    }
+
+    if (match_counter == 0) {
+        //std::cout << "\n no tcp connection for process " + process + "\n";
+        std::cout << "";
+    } else {
+        std::cout << "\n the process has established the following tcp connection:\n";
+        active_tcp_connections.push_back(process);
+    }
+
+
+*//*     if(!line_filter_reader(&line, inode).empty()){
+       while(getline(in, line)){
+        raw_tcp_string = line_filter_reader(&line, inode);
+        socket_vector.push_back(raw_tcp_string);
+       }
+      } *//*
+
+
+    //iterates over the vector and formats the information
+    for (auto iter = socket_vector.begin(); iter != socket_vector.end(); ++iter) {
+        result_message = output_formatter(process, *iter);
+        active_tcp_connections.push_back(result_message);
+    }
+
+
+}*/
+
+int filter(const struct dirent *dir) {
+    return !fnmatch("[1-9]*", dir->d_name, 0) /* && user == dirinfo.st_uid */;
+}
+
+std::vector<std::string> do_something_with_the_folder(const struct dirent *dir, std::vector<std::string> str_vec_t) {
+    std::string processes_str("");
+    processes_str += dir->d_name;
+    str_vec_t.push_back(processes_str);
+
+
+    return str_vec_t;
+
+}
+
+
+std::vector<std::string> filter_pid() {
+    struct dirent **namelist;
+    int n;
+
+
+    typedef std::vector<std::string> str_vec_t;
+    str_vec_t proc_folders_vec;
+
+    n = scandir("/proc", &namelist, filter, 0);
+    while (n--) {
+        proc_folders_vec = do_something_with_the_folder(namelist[n], proc_folders_vec);
+        free(namelist[n]);
+    }
+
+    return proc_folders_vec;
+}
+
+/*
+
+void tcp_correlator_for_single_process() {
+    std::cout << "\n running processes: \n";
+
+    auto processes = filter_pid();
+    for (auto iter = processes.begin(); iter != processes.end(); ++iter)
+        std::cout << *iter;
+
+    std::cout << " \n";
+
+
+    std::string process_id;
+    std::cout << "\nPlease enter the process-id for correlation: ";
+    getline(std::cin, process_id);
+    tcp_socket(process_id);
+}
+
+
+bool is_undesired_pid(std::string pid) {
+
+//messy fix to exclude undesired processes that are falsely associated with novel tcp socket-inodes
+    std::set<std::string> excluded_pids = {" 30853", " 30852", " 30820", "  30804 ", " 30803", " 30771", " 30541",
+                                           " 30540", " 30485", " 29388", " 29387", " 29331", " 28332", " 28331",
+                                           " 28299", " 28276", " 28275", " 28243", " 26618", " 26617", " 26585",
+                                           " 23763", " 23762", " 23730", " 22316", " 22315", " 22260", " 17661",
+                                           " 17660", " 17603", " 12959", " 12958", " 12926", " 12829", " 12828",
+                                           " 12774", " 12693", " 12692", " 12660", " 12570", " 12546", " 12545",
+                                           " 12472", " 12462", " 12439", " 12438", " 12405", " 12345", " 12344",
+                                           " 12312", " 11957", " 11916", " 11915", " 11883", " 11836", " 11835",
+                                           " 11803", " 11788", " 11787", " 11733", " 11702", " 11574", " 11489",
+                                           " 11126", " 10906", " 10802", " 10787", " 10786", " 10754"};
+
+    const bool is_in = excluded_pids.find(pid) != excluded_pids.end();
+    if (is_in == true) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+//finds position of element in vector
+int element_vector_position_finder(std::vector<std::string> input_vector, std::string input_string) {
+    ptrdiff_t pos = std::distance(input_vector.begin(), find(input_vector.begin(), input_vector.end(), input_string));
+    if (pos >= input_vector.size()) {
+        std::cout << "\n problem in element_vector_position_finder" + input_string + " not found\n";
+    }
+
+    return pos;
+}
+
+
+//iterates of a vector of pids and filters out undesired elemtens
+std::vector<std::string> vector_sanitizer(std::vector<std::string> subject_vector) {
+
+    for (auto iter = subject_vector.begin(); iter != subject_vector.end(); ++iter) {
+        if (is_undesired_pid(*iter)) {
+            int pos = element_vector_position_finder(subject_vector, *iter);
+            subject_vector.erase(subject_vector.begin() + pos);
+            subject_vector = subject_vector;
+        }
+    }
+
+    return subject_vector;
+}
+
+
+void tcp_correlator_for_tcp_processes() {
+    std::vector<std::string> processes = vector_sanitizer(filter_pid());
+
+    for (auto iter = processes.begin(); iter != processes.end(); ++iter) {
+        tcp_socket(*iter);
+    }
+}
+*/
+
+
+
+using namespace std;
+
+#include "sys/stat.h"
+
+
+
+/*
+ * checks wether a string only contains numbers
+ * */
+bool is_digits(const std::string &str) {
+    return std::all_of(str.begin(), str.end(), ::isdigit); // C++11
+}
+
+
+/*
+ * helping functiog: reduces mulitple spaces to one
+ * */
+bool BothAreSpaces(char lhs, char rhs) { return (lhs == rhs) && (lhs == ' '); }
+
+
+/*
+ * tokenizes a string, and returns the word with a desired index
+ * */
+string string_token_filter(string input_string, int index) {
+
+    vector<string> numbers; //we'll put all of the tokens in here
+    string temp;
+
+    std::string::iterator new_end = std::unique(input_string.begin(), input_string.end(), BothAreSpaces);
+    input_string.erase(new_end, input_string.end());
+
+
+    while (input_string.find(" ", 0) != string::npos) { //does the string a empty_space in it?
+        size_t pos = input_string.find(" ", 0); //store the position of the delimiter
+        temp = input_string.substr(0, pos);      //get the token
+        input_string.erase(0, pos + 1);          //erase it from the source
+        numbers.push_back(temp);                //and put it into the array
+    }
+
+    numbers.push_back(input_string);           //the last token is all alone
+    return numbers[index];
+}
+
+
+/*
+ * It will iterate through all the lines in file and
+ * put them in given vector
+ */
+bool getFileContent(std::string fileName, std::vector<std::string> &vecOfStrs) {
+
+    // Open the File
+    std::ifstream in(fileName.c_str());
+
+    // Check if object is valid
+    if (!in) {
+        std::cerr << "Cannot open the File : " << fileName << std::endl;
+        return false;
+    }
+
+    std::string str;
+    // Read the next line from File untill it reaches the end.
+    while (std::getline(in, str)) {
+        // Line contains string of length > 0 then save it in vector
+        if (str.size() > 0)
+            vecOfStrs.push_back(str);
+    }
+    //Close The File
+    in.close();
+    return true;
+}
+
+/*
+ * pops the first element of
+ * */
+template<typename T>
+vector<string> pop_front(std::vector<T> &vec) {
+    assert(!vec.empty());
+    vec.front() = std::move(vec.back());
+    vec.pop_back();
+    return vec;
+}
+
+/*
+ * parses the content from /proc/net/tcp for inodes
+ * */
+vector<string> proc_tcp_inodes() {
+
+    vector<string> vecOfStr;
+    vector<string> vecOfStr1;
+    vector<string> vecOfinodes;
+    bool result = getFileContent("/proc/net/tcp", vecOfStr);
+
+    //first element of proc/net/tcp needs to be popped bcause it merely describes the postioning of the sectors
+    vecOfStr1 = pop_front(vecOfStr);
+
+
+    if (result) {
+        // Print the vector contents
+        for (string &line : vecOfStr1)
+
+            vecOfinodes.push_back(string_token_filter(line, 10));
+        //cout << string_token_filter(line, 10) <<endl;
+    }
+    return vecOfinodes;
+}
+
+
+/*
+ * parses the content of /proc/net/tcp and gives out the
+ * */
+vector<string> proc_tcp_data(bool mode) {
+
+    vector<string> connectionData;
+
+    vector<string> vecOfStr;
+    bool result = getFileContent("/proc/net/tcp", vecOfStr);
+
+    //first element of proc/net/tcp needs to be popped bcause it merely describes the postioning of the sectors
+    vector<string> vecOfStr1;
+    vecOfStr1 = pop_front(vecOfStr);
+
+
+    if (result) {
+        // Print the vector contents
+        for (string &line : vecOfStr1) {
+
+
+            //every line gets filtered for local and remoteadress as well as inode an owner, the result get accumulated in this string
+            string filtered_line;
+
+
+            //loc_adress
+            string loc_adress = string_token_filter(line, 2);
+            auto hex_loc_adress = loc_adress.c_str();
+            auto hex_loc_port = loc_adress.substr(9,4);
+            auto dec_loc_ip = hex_to_ip(hex_loc_adress);
+            auto dec_loc_port = hex_to_port(hex_loc_port.c_str());
+            filtered_line = " local-ip:" + string(dec_loc_ip) +":"+ string(dec_loc_port) + " ";
+
+            //rem_adress
+            string rem_adress = string_token_filter(line, 3);
+            auto hex_rem_adress = rem_adress.c_str();
+            auto hex_rem_port = rem_adress.substr(9,4);
+            auto dec_rem_ip = hex_to_ip(hex_rem_adress);
+            auto dec_rem_port = hex_to_port(hex_rem_port.c_str());
+            filtered_line += " remote-ip:" +  string(dec_rem_ip) +":"+ string(dec_rem_port) + " ";
+
+            //owner/uid
+            filtered_line += "socket-owner: "+  string_token_filter(line, 8) + " ";
+
+            //inode
+            filtered_line += "socket inode:"+ string_token_filter(line, 10);
+
+            //ultimately the lines get pushed to a accumulating vector
+            connectionData.push_back(filtered_line);
+        }
+
+
+
+    }
+    if(mode == true) {
+        cout << "this is the filtered /proc/net/tcp output from proc_tcp_data()" << endl;
+        cout << "local_ip, remote_ip, owner, inode" << endl;
+        for (string &line : connectionData) {
+            cout << line << endl;
+        }
+    }
+
+
+    return connectionData;
+
+
+}
+
+
+/*checks wether a given process has a socket
+ * @param if mode is set to true the debug mode will be enabled that prints out detailed information
+ * */
+bool socket_checker(string process, bool mode) {
+
+
+    /*vector where all the filedescriptor numbers get pushed to*/
+    std::vector<std::string> files_in_folder;
+
+    /*path to a process filedescriptors*/
+    std::string process_path = "/proc/" + process + "/fd/";
+    /*path to process fildescriptors as a char*/
+    const char *process_path_char = process_path.c_str();
+    DIR *d;
+    struct dirent *dir;
+    struct stat info;
+
+
+    //this a result variable that contains the link of the filedescriptor is needed for parsing to see wether a filedescriptor is a socket as
+    char result_path[PATH_MAX] = {0};
+
+    //the inodes from all tcp connections under /proc/net/tcp as a vector)
+
+    vector<string> tcp_connection_inodes = proc_tcp_inodes();
+
+
+    //counts the valid tcp socket fildescriptors of a process
+    int tcp_socket_counter = 0;
+
+    std::ifstream in(process_path_char);
+
+    // Check if process path can be opened is valid
+    if (!in) {
+        if (mode == true) {
+            std::cerr << "Cannot open the File : " << process_path
+                      << " path might not exist or the programm might not have sufficient authorization to access the folder"
+                      << std::endl;
+        }
+        return false;
+    }
+
+
+    //these are the normalized data entry from /proc/net/tcp remote and local ip/port as well as inodes for association an owner
+    vector<string> tcp_data = proc_tcp_data(mode);
+
+
+
+
+    //actually opens a folderpath and pushes all the content to a vector
+    try {
+        if (stat(process_path_char, &info) != 0) {
+            throw "can't open the folder for path: " + process_path;
+        } else if (info.st_mode & S_IFDIR)  // S_ISDIR() doesn't exist on my windows
+
+            d = opendir(process_path.c_str());
+        if (d) {
+            while ((dir = readdir(d)) != NULL) {
+                std::string str = dir->d_name;
+
+                //@debug prints out the contents that are put into the vector
+                //std::cout << str << std::endl;
+                if (str.compare(".") != 0 && str.compare("..") != 0) {
+                    files_in_folder.push_back(str);
+                }
+            }
+            closedir(d);
+
+
+            //iterates over all the file descriptors of a process (found under /proc/pid*/fd)
+            for (auto iter = files_in_folder.begin(); iter != files_in_folder.end(); ++iter) {
+
+                std::string filedescriptor_path = "/proc/" + process + "/fd/" + *iter;
+
+                //readlink reads the symbolic link
+                auto size = readlink(filedescriptor_path.c_str(), result_path, sizeof(result_path));
+                std::string result = std::string(result_path);
+
+                //checks wether a filedescriptor from result contains the word socket
+                string process_filedescriptor = string(result);
+                bool filedescriptorSocket = process_filedescriptor.find("socket:[");
+
+
+
+                //the inode filtered from /proc/*pid/fd
+                string process_socket_inode = inode_retriever(process, *iter);
+
+                //i haven't quite fully quite grasp why a negation is needed but it works
+                //checks wether filedescriptor is a socket
+                if (!filedescriptorSocket) {
+
+                    //if the process_socket finds the tcp inodes that matches the inode from the filedescriptor
+                    if (std::find(tcp_connection_inodes.begin(), tcp_connection_inodes.end(), process_socket_inode) !=
+                        tcp_connection_inodes.end()) {
+
+                        //for every match of a inode from process_socket with an inode in the tcp data give out the matching  parsed line from /proc/net/tcp with all the information
+                        for(std::string & line : tcp_data){
+
+                            if (line.find(process_socket_inode) != std::string::npos) {
+
+                                cout << "pid: " << process << line <<endl;
+
+                            }
+
+                        }
+
+                        if (mode == true) {
+                            cout << process_socket_inode.c_str()
+                                 << " inode found under /proc/net/tcp  matches a inode found under /proc/"
+                                 << process.c_str() << "/fd ---> " << process_filedescriptor.c_str() << endl;
+                            tcp_socket_counter = tcp_socket_counter + 1;
+
+                        }
+                        tcp_socket_counter = tcp_socket_counter + 1;
+                    } else {
+                        tcp_socket_counter = tcp_socket_counter + 0;
+                    }
+                }
+
+
+            }
+
+            if (tcp_socket_counter == 0) {
+                if (mode == true) {
+                    cout << "no tcp connection found for process: " << process << endl;
+                }
+            }
+
+        } else {
+            throw process_path + "does not exist";
+        }
+
+    } catch (const char *msg) {
+        cerr << msg << endl;
+    }
+    return false;
+
+
+}
+
+void explainer(bool mode) {
+
+
+    if (mode == true) {
+        cout << "to demonstrate how the tokenizer works \n" << string_token_filter("eins zwei drei vier", 3) << endl;
+
+
+        cout << " \n the filtered inodes from getFileContent function (raw file strings from /proc/net/tcp)" << endl;
+        std::vector<std::string> vecOfStr;
+
+        // Get the contents of file in a vector
+        bool result = getFileContent("/proc/net/tcp", vecOfStr);
+        if (result) {
+            // Print the vector contents
+            for (std::string &line : vecOfStr)
+                std::cout << line << std::endl;
+        }
+
+        cout << " \n the filtered inodes from proc_tcp_inodes function (all inodes of tcp connections) \n" << endl;
+        for (string &line : proc_tcp_inodes()) { cout << line << endl; }
+
+        cout << "\n the parsed content of /proc/net/tcp" << endl;
+        proc_tcp_data(mode);
+
+
+    }
+
+    cout << "************************************ ACTIVE TCP CONNECTIONS ************************************" << endl;
+    std::vector<string> running_processes = filter_pid();
+    vector<string> tcp_process;
+    for (std::string &line : running_processes) {
+
+        socket_checker(line, mode);
+    }
+}
+
+
+#endif //THESIS_FRIEDER_CORRELATIONFUNCTIONS_H
